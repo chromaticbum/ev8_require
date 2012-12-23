@@ -1,5 +1,5 @@
 (function() {
   require = function(path) {
-    return _require(__vm__, path);
+    return _require(__ev8__.vm, path);
   }
 })();

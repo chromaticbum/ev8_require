@@ -4,6 +4,7 @@ ebin/
 logs/
 test/*.beam
 .eunit/
+deps/
 
 erl_crash.dump
 *.plt
