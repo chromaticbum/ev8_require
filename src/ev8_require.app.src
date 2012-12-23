@@ -1,0 +1,13 @@
+{application, ev8_require,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  erlang_v8
+                 ]},
+  {mod, { ev8_require_app, []}},
+  {env, [{path, ["./"]}]}
+ ]}.
