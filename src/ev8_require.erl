@@ -44,9 +44,14 @@ require(Vm, Path) ->
 
 require_file(Vm, Path) ->
   Context = ev8:new_context(Vm),
-  Result = ev8cache:eval_file(Context, Path),
-  io:format("Result: ~p~n", [evo8:get(Context, Result, <<"hello">>)]),
-  Result.
+  Module = ev8:eval(Context, <<"new Object">>),
+  Exports = ev8:eval(Context, <<"new Object">>),
+  ev8:set(Context, Module, <<"exports">>, Exports),
+  ev8:set(Context, global, [{<<"module">>, Module},
+                            {<<"exports">>, Exports}]),
+
+  ev8cache:eval_file(Context, Path),
+  ev8:get(Context, global, <<"exports">>).
 
 resolve(Path) ->
   io:format("Resolve: ~p~n", [Path]),
