@@ -2,6 +2,7 @@
 
 -export([
   start/0,
+  stop/0,
   install/1,
   add_path/1,
   get_env/1,
@@ -12,11 +13,14 @@ start() ->
   application:start(erlang_v8),
   application:start(ev8_require).
 
+stop() ->
+  application:stop(ev8_require).
+
 install(Context) ->
   Fun = fun() ->
-      ev8:set(Context, global, <<"_require">>, fun require/2),
-      Require = ev8:get(Context, global, <<"require">>),
-      ev8:set(Context, Require, <<"resolve">>, fun resolve/1),
+      ev8:set(Context, global, <<"_require">>, fun require/3),
+      ev8:get(Context, global, <<"require">>),
+      ev8:set(Context, global, <<"_resolve">>, fun resolve/2),
       ev8:eval_file(Context, filename:join(code:priv_dir(ev8_require), "ev8_require.js")),
 
       ok
@@ -35,44 +39,85 @@ set_env(Name, Value) ->
 
 % Internal functions
 
-require(Vm, {ok, Path}) ->
-  require_file(Vm, Path);
-require(_Vm, {error, not_found}) ->
+require(_Vm, _File, _Path) -> ok.
+
+resolve(File, Path) when is_binary(File) and is_binary(Path) ->
+  io:format("Resolve from(~p): ~p~n", [File, Path]),
+  resolve(resolve(pathtype(binary_to_list(Path)), binary_to_list(File), binary_to_list(Path))).
+
+resolve({ok, Path}) -> list_to_binary(Path);
+resolve({error, not_found}) -> {error, not_found}.
+
+resolve(relative, File, Path) ->
+  resolve(absolute, File, filename:join(filename:dirname(filename:absname(File)), Path));
+resolve(absolute, _File, Path) ->
+  resolve_path(Path);
+resolve(library, _File, Path) ->
+  resolve_library(Path, get_env(library_path)).
+
+resolve_library(_Path, []) ->
   {error, not_found};
-require(Vm, Path) ->
-  require(Vm, resolve(Path)).
+resolve_library(Path, [Head | Tail]) ->
+  resolve_library(Path, Tail, resolve_path(filename:join(filename:absname(Head), Path))).
 
-require_file(Vm, Path) ->
-  Context = ev8:new_context(Vm),
-  Module = ev8:eval(Context, <<"new Object">>),
-  Exports = ev8:eval(Context, <<"new Object">>),
-  ev8:set(Context, Module, <<"exports">>, Exports),
-  ev8:set(Context, global, [{<<"module">>, Module},
-                            {<<"exports">>, Exports}]),
+resolve_library(_Path, _Paths, {ok, FullPath}) ->
+  {ok, FullPath};
+resolve_library(Path, Paths, {error, not_found}) ->
+  resolve_library(Path, Paths).
 
-  ev8cache:eval_file(Context, Path),
-  ev8:get(Context, global, <<"exports">>).
+resolve_path(Path) ->
+  resolve_path(filename:extension(Path), Path).
 
-resolve(Path) ->
-  io:format("Resolve: ~p~n", [Path]),
+resolve_path([], Path) ->
+  resolve_no_ext(js, Path);
+resolve_path(".js", Path) ->
+  resolve_ext(Path);
+resolve_path(".json", Path) ->
+  resolve_ext(Path);
+resolve_path(_, _) ->
+  {error, not_found}.
 
-  case {filelib:is_dir(Path), filelib:is_file(Path)} of
-    {true, false} -> resolve_dir(Path);
-    {false, true} -> {ok, Path};
-    {false, false} -> resolve_not_found(Path)
-  end.
+resolve_ext(Path) ->
+  resolve_ext(filelib:is_file(Path), Path).
 
-resolve_not_found(Path) ->
-  File = Path ++ ".js",
-  case filelib:is_file(File) of
-    true -> {ok, File};
-    false -> {error, not_found}
-  end.
+resolve_ext(true, Path) ->
+  {ok, Path};
+resolve_ext(false, _Path) ->
+  {error, not_found}.
+
+resolve_no_ext(js, Path) ->
+  resolve_no_ext(js, filelib:is_file(Path ++ ".js"), Path).
+
+resolve_no_ext(js, true, Path) ->
+  {ok, Path ++ ".js"};
+resolve_no_ext(js, false, Path) ->
+  resolve_no_ext(json, filelib:is_file(Path ++ ".json"), Path);
+resolve_no_ext(json, true, Path) ->
+  {ok, Path ++ ".json"};
+resolve_no_ext(json, false, Path) ->
+  resolve_no_ext(dir, filelib:is_dir(Path), Path);
+resolve_no_ext(dir, true, Path) ->
+  resolve_dir(Path);
+resolve_no_ext(dir, false, _Path) ->
+  {error, not_found}.
 
 resolve_dir(Path) ->
-  File = filename:join(Path, "index.js"),
-  case filelib:is_file(File) of
-    true -> {ok, File};
-    false -> {error, not_found}
-  end.
+  resolve_dir(package, filelib:is_file(filename:join(Path, "package.json")), Path).
 
+resolve_dir(package, true, Path) ->
+  {ok, filename:join(Path, "package.json")};
+resolve_dir(package, false, Path) ->
+  resolve_dir(index, filelib:is_file(filename:join(Path, "index.js")), Path);
+resolve_dir(index, true, Path) ->
+  {ok, filename:join(Path, "index.js")};
+resolve_dir(index, false, _Path) ->
+  {error, not_found}.
+
+pathtype(Path) ->
+  [Head | _Parts] = filename:split(Path),
+  case Head of
+    "." -> relative;
+    ".." -> relative;
+    "/" -> absolute;
+    _ -> library
+  end.

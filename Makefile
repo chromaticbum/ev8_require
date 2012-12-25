@@ -24,7 +24,7 @@ eunit: compile
 
 ct: compile
 	rm -rf logs
-	./rebar -C rebar.tests.config ct skip_deps=true || open logs/index.html
+	./rebar -C rebar.config ct skip_deps=true || open logs/index.html
 
 build-plt:
 	@$(DIALYZER) --build_plt --output_plt .$(PROJECT).plt \
