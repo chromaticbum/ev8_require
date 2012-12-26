@@ -87,7 +87,6 @@ resolve({ok, Result}) when is_binary(Result) ->
   Result.
 
 do_resolve(File, Path) ->
-  io:format("do_resolve(~p): ~p~n", [File, Path]),
   do_resolve(pathtype(Path), File, Path).
 
 do_resolve(relative, File, Path) ->
@@ -109,10 +108,9 @@ resolve_dir(Path) ->
   resolve_package(filelib:is_file(filename:join(Path, "package.json")), Path).
 
 resolve_package(true, Path) ->
-  io:format("ResolvePackage true~n"),
   {ok, Content} = file:read_file(filename:join(Path, "package.json")),
   {struct, Json} = mochijson2:decode(Content),
-  io:format("Json: ~p~n", [Json]),
+
   case proplists:get_value(<<"main">>, Json) of
     undefined -> {error, invalid_package};
     File ->
@@ -120,7 +118,6 @@ resolve_package(true, Path) ->
       resolve_package_file(filelib:is_file(PackageFile), PackageFile)
   end;
 resolve_package(false, Path) ->
-  io:format("ResolvePackage false~n"),
   resolve_index(filelib:is_file(filename:join(Path, "index.js")), Path).
 
 resolve_package_file(true, Path) ->
@@ -134,7 +131,6 @@ resolve_index(false, _Path) ->
   {error, not_found}.
 
 resolve_file(Path) ->
-  io:format("ResolveFile ~p~n", [Path]),
   resolve_file(filename:extension(Path), Path).
 
 resolve_file([], Path) ->
