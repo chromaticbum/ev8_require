@@ -50,12 +50,14 @@ try_require(Vm, Module) ->
   cache_miss(Vm, binary_to_list(Module)).
 
 cache_miss(Vm, ModuleFile) ->
-  io:format("HEYO: ~p~n", [filename:extension(ModuleFile)]),
   cache_miss(filename:extension(ModuleFile), Vm, ModuleFile).
 
 cache_miss(".json", Vm, ModuleFile) ->
-  cache_miss_json(filename:basename(ModuleFile), Vm, ModuleFile);
-cache_miss(".js", Vm, ModuleFile) ->
+  cache_miss_json(Vm, ModuleFile);
+cache_miss(_, Vm, ModuleFile) ->
+  cache_miss_js(Vm, ModuleFile).
+
+cache_miss_js(Vm, ModuleFile) ->
   C = ev8:new_context(Vm),
   Module = ev8:eval(C, <<"new Object">>),
   Exports = ev8:eval(C, <<"new Object">>),
@@ -66,14 +68,7 @@ cache_miss(".js", Vm, ModuleFile) ->
 
   Exports.
 
-cache_miss_json("package.json", Vm, ModuleFile) ->
-  {ok, Contents} = file:read_file(ModuleFile),
-  {struct, Json} = mochijson2:decode(Contents),
-  case proplists:get_value(<<"main">>, Json) of
-    undefined -> {error, invalid_package_json};
-    File -> require(Vm, list_to_binary(ModuleFile), iolist_to_binary(filename:join(filename:dirname(ModuleFile), File)))
-  end;
-cache_miss_json(_, Vm, ModuleFile) ->
+cache_miss_json(Vm, ModuleFile) ->
   C = ev8:new_context(Vm),
   {ok, Json} = file:read_file(ModuleFile),
   Js = list_to_binary("JSON.parse(JSON.stringify(" ++ binary_to_list(Json) ++ "))"),
