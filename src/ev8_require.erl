@@ -80,77 +80,85 @@ cache_miss_json(_, Vm, ModuleFile) ->
   ev8:eval(C, {ModuleFile, 0}, Js).
 
 resolve(File, Path) when is_binary(File) and is_binary(Path) ->
-  io:format("Resolve from(~p): ~p~n", [File, Path]),
-  resolve(resolve(pathtype(binary_to_list(Path)), binary_to_list(File), binary_to_list(Path))).
+  resolve(binary_to_list(File), binary_to_list(Path));
+resolve(File, Path) when is_list(File) and is_list(Path) ->
+  resolve(do_resolve(File, Path)).
 
-resolve({ok, Path}) -> list_to_binary(Path);
-resolve({error, not_found}) -> {error, not_found}.
-
-resolve(relative, File, Path) ->
-  resolve(absolute, File, filename:join(filename:dirname(filename:absname(File)), Path));
-resolve(absolute, _File, Path) ->
-  resolve_path(Path);
-resolve(library, _File, Path) ->
-  resolve_library(Path, get_env(library_path)).
-
-resolve_library(_Path, []) ->
+resolve({error, not_found}) ->
   {error, not_found};
-resolve_library(Path, [Head | Tail]) ->
-  resolve_library(Path, Tail, resolve_path(filename:join(filename:absname(Head), Path))).
+resolve({ok, Result}) when is_list(Result) ->
+  list_to_binary(Result);
+resolve({ok, Result}) when is_binary(Result) ->
+  Result.
 
-resolve_library(_Path, _Paths, {ok, FullPath}) ->
-  {ok, FullPath};
-resolve_library(Path, Paths, {error, not_found}) ->
-  resolve_library(Path, Paths).
+do_resolve(File, Path) ->
+  io:format("do_resolve(~p): ~p~n", [File, Path]),
+  do_resolve(pathtype(Path), File, Path).
 
-resolve_path(Path) ->
-  resolve_path(filename:extension(Path), Path).
+do_resolve(relative, File, Path) ->
+  do_resolve(absolute, File, filename:join(filename:dirname(filename:absname(File)), Path));
+do_resolve(absolute, _File, Path) ->
+  resolve_absolute(Path).
 
-resolve_path([], Path) ->
-  resolve_no_ext(js, Path);
-resolve_path(".js", Path) ->
-  resolve_ext(Path);
-resolve_path(".json", Path) ->
-  resolve_ext(Path);
-resolve_path(_, _) ->
-  {error, not_found}.
+resolve_absolute(Path) ->
+  resolve_path(filelib:is_file(Path), filelib:is_dir(Path), Path).
 
-resolve_ext(Path) ->
-  resolve_ext(filelib:is_file(Path), Path).
-
-resolve_ext(true, Path) ->
+resolve_path(true, false, Path) ->
   {ok, Path};
-resolve_ext(false, _Path) ->
-  {error, not_found}.
-
-resolve_no_ext(js, Path) ->
-  resolve_no_ext(js, filelib:is_file(Path ++ ".js"), Path).
-
-resolve_no_ext(js, true, Path) ->
-  {ok, Path ++ ".js"};
-resolve_no_ext(js, false, Path) ->
-  resolve_no_ext(json, filelib:is_file(Path ++ ".json"), Path);
-resolve_no_ext(json, true, Path) ->
-  {ok, Path ++ ".json"};
-resolve_no_ext(json, false, Path) ->
-  resolve_no_ext(dir, filelib:is_dir(Path), Path);
-resolve_no_ext(dir, true, Path) ->
+resolve_path(true, true, Path) ->
   resolve_dir(Path);
-resolve_no_ext(dir, false, _Path) ->
-  {error, not_found}.
+resolve_path(false, false, Path) ->
+  resolve_file(Path).
 
 resolve_dir(Path) ->
-  resolve_dir(package, filelib:is_file(filename:join(Path, "package.json")), Path).
+  resolve_package(filelib:is_file(filename:join(Path, "package.json")), Path).
 
-resolve_dir(package, true, Path) ->
-  {ok, filename:join(Path, "package.json")};
-resolve_dir(package, false, Path) ->
-  resolve_dir(index, filelib:is_file(filename:join(Path, "index.js")), Path);
-resolve_dir(index, true, Path) ->
-  {ok, filename:join(Path, "index.js")};
-resolve_dir(index, false, _Path) ->
+resolve_package(true, Path) ->
+  io:format("ResolvePackage true~n"),
+  {ok, Content} = file:read_file(filename:join(Path, "package.json")),
+  {struct, Json} = mochijson2:decode(Content),
+  io:format("Json: ~p~n", [Json]),
+  case proplists:get_value(<<"main">>, Json) of
+    undefined -> {error, invalid_package};
+    File ->
+      PackageFile = filename:join(Path, File),
+      resolve_package_file(filelib:is_file(PackageFile), PackageFile)
+  end;
+resolve_package(false, Path) ->
+  io:format("ResolvePackage false~n"),
+  resolve_index(filelib:is_file(filename:join(Path, "index.js")), Path).
+
+resolve_package_file(true, Path) ->
+  {ok, Path};
+resolve_package_file(false, _Path) ->
   {error, not_found}.
 
+resolve_index(true, Path) ->
+  {ok, filename:join(Path, "index.js")};
+resolve_index(false, _Path) ->
+  {error, not_found}.
+
+resolve_file(Path) ->
+  io:format("ResolveFile ~p~n", [Path]),
+  resolve_file(filename:extension(Path), Path).
+
+resolve_file([], Path) ->
+  resolve_js(filelib:is_file(Path ++ ".js"), Path);
+resolve_file(_, _Path) ->
+  {error, not_found}.
+
+resolve_js(true, Path) ->
+  {ok, Path ++ ".js"};
+resolve_js(false, Path) ->
+  resolve_json(filelib:is_file(Path ++ ".json"), Path).
+
+resolve_json(true, Path) ->
+  {ok, Path ++ ".json"};
+resolve_json(false, _Path) ->
+  {error, not_found}.
+
+pathtype(Path) when is_binary(Path) ->
+  pathtype(binary_to_list(Path));
 pathtype(Path) ->
   [Head | _Parts] = filename:split(Path),
   case Head of

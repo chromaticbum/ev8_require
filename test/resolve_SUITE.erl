@@ -57,7 +57,7 @@ no_ext(Config) ->
 
 dir(Config) ->
   C = ?config(context, Config),
-  ExpectedPackage = list_to_binary(filename:join(?config(module_dir, Config), "module_with_package/package.json")),
+  ExpectedPackage = list_to_binary(filename:join(?config(module_dir, Config), "module_with_package/something.js")),
   ExpectedPackage = evo8:eval(C, ?config(script_origin, Config), <<"require.resolve('./module_with_package')">>),
 
   ExpectedJson = list_to_binary(filename:join(?config(module_dir, Config), "module_no_package/index.js")),
