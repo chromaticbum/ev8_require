@@ -4,7 +4,7 @@
   start/0,
   stop/0,
   install/1,
-  add_path/1,
+  add_core_path/1,
   get_env/1,
   set_env/2
   ]).
@@ -26,8 +26,8 @@ install(Context) ->
   end,
   ev8:transaction(Context, Fun).
 
-add_path(Path) ->
-  set_env(path, get_env(path) ++ Path).
+add_core_path(Path) ->
+  set_env(core_path, get_env(core_path) ++ [Path]).
 
 get_env(Name) ->
   {ok, Result} = application:get_env(ev8_require, Name),
@@ -93,10 +93,26 @@ do_resolve(File, Path) ->
 do_resolve(relative, File, Path) ->
   do_resolve(absolute, File, filename:join(filename:dirname(filename:absname(File)), Path));
 do_resolve(absolute, _File, Path) ->
-  resolve_absolute(Path).
+  resolve_absolute(Path);
+do_resolve(library, _File, Path) ->
+  resolve_library(Path).
+
+resolve_library(Path) ->
+  resolve_library(Path, get_env(core_path)).
+
+resolve_library(_Path, []) ->
+  {error, not_found};
+resolve_library(Path, [Head | Tail]) ->
+  resolve_library(resolve_absolute(filename:join(Head, Path)), Path, Tail).
+
+resolve_library({ok, Path}, _Path, _Paths) ->
+  {ok, Path};
+resolve_library({error, not_found}, Path, Paths) ->
+  resolve_library(Path, Paths).
 
 resolve_absolute(Path) ->
-  resolve_path(filelib:is_file(Path), filelib:is_dir(Path), Path).
+  Path2 = filename:absname(Path),
+  resolve_path(filelib:is_file(Path2), filelib:is_dir(Path2), Path2).
 
 resolve_path(true, false, Path) ->
   {ok, Path};

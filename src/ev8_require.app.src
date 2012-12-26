@@ -9,5 +9,5 @@
                   erlang_v8
                  ]},
   {mod, { ev8_require_app, []}},
-  {env, [{library_path, ["./"]}]}
+  {env, [{core_path, []}]}
  ]}.

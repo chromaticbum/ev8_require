@@ -1,0 +1,1 @@
+exports.coreMod = "index.js";

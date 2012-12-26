@@ -12,13 +12,15 @@
   with_ext/1,
   no_ext/1,
   dir/1,
+  core/1,
   not_found/1
   ]).
 
 all() -> [with_ext,
-         no_ext,
-         dir,
-         not_found].
+          no_ext,
+          dir,
+          core,
+          not_found].
 
 init_per_suite(Config) ->
   ev8_require:start(),
@@ -26,10 +28,13 @@ init_per_suite(Config) ->
   Context = ev8:new_context(Vm),
   ev8:install(Context, [ev8_require]),
   Path = filename:join(code:lib_dir(ev8_require), "test/module"),
+  CorePath = filename:join(Path, "core"),
+  ev8_require:add_core_path(CorePath),
 
   [{vm, Vm}, {context, Context},
    {module_dir, Path},
-   {script_origin, {filename:join(Path, "test.js"), 0}} | Config].
+   {script_origin, {filename:join(Path, "test.js"), 0}},
+   {core_dir, CorePath} | Config].
 
 end_per_suite(Config) ->
   ev8_require:stop(),
@@ -62,6 +67,22 @@ dir(Config) ->
 
   ExpectedJson = list_to_binary(filename:join(?config(module_dir, Config), "module_no_package/index.js")),
   ExpectedJson = evo8:eval(C, ?config(script_origin, Config), <<"require.resolve('./module_no_package')">>),
+
+  ok.
+
+core(Config) ->
+  C = ?config(context, Config),
+  Expected1 = list_to_binary(filename:join(?config(core_dir, Config), "core1.js")),
+  Expected1 = evo8:eval(C, ?config(script_origin, Config), <<"require.resolve('core1.js')">>),
+
+  Expected2 = list_to_binary(filename:join(?config(core_dir, Config), "core2.json")),
+  Expected2 = evo8:eval(C, ?config(script_origin, Config), <<"require.resolve('core2.json')">>),
+
+  Expected3 = list_to_binary(filename:join(?config(core_dir, Config), "core_mod/core_mod.js")),
+  Expected3 = evo8:eval(C, ?config(script_origin, Config), <<"require.resolve('core_mod')">>),
+
+  Expected4 = list_to_binary(filename:join(?config(core_dir, Config), "core_mod_index/index.js")),
+  Expected4 = evo8:eval(C, ?config(script_origin, Config), <<"require.resolve('core_mod_index')">>),
 
   ok.
 
