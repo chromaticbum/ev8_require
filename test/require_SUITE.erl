@@ -48,11 +48,25 @@ require_json(Config) ->
   C = ?config(context, Config),
 
   Obj = ev8:eval(
-      C, ?config(script_origin, Config), <<"require('./module_js/module.json')">>),
+      C, ?config(script_origin, Config), <<"require('./module_json/module.json')">>),
   <<"awesome">> = evo8:get(C, Obj, <<"mothra">>),
 
   ok.
 
-require_package_module(_Config) -> ok.
+require_package_module(Config) ->
+  C = ?config(context, Config),
 
-require_index_module(_Config) -> ok.
+  Obj = ev8:eval(
+      C, ?config(script_origin, Config), <<"require('./module_with_package')">>),
+  <<"bad">> = evo8:get(C, Obj, <<"monsterX">>),
+
+  ok.
+
+require_index_module(Config) ->
+  C = ?config(context, Config),
+
+  Obj = ev8:eval(
+      C, ?config(script_origin, Config), <<"require('./module_no_package')">>),
+  <<"baddest">> = evo8:get(C, Obj, <<"kingGhidorah">>),
+
+  ok.
