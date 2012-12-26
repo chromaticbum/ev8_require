@@ -19,7 +19,6 @@ stop() ->
 install(Context) ->
   Fun = fun() ->
       ev8:set(Context, global, <<"_require">>, fun require/3),
-      ev8:get(Context, global, <<"require">>),
       ev8:set(Context, global, <<"_resolve">>, fun resolve/2),
       ev8:eval_file(Context, filename:join(code:priv_dir(ev8_require), "ev8_require.js")),
 
@@ -39,7 +38,36 @@ set_env(Name, Value) ->
 
 % Internal functions
 
-require(_Vm, _File, _Path) -> ok.
+require(Vm, File, Module) ->
+  Fun = fun() ->
+      try_require(Vm, resolve(File, Module))
+  end,
+  ev8cache:try_cache(Vm, {ev8_require, Module}, Fun).
+
+try_require(_Vm, {error, not_found}) ->
+  {error, not_found};
+try_require(Vm, Module) ->
+  cache_miss(Vm, binary_to_list(Module)).
+
+cache_miss(Vm, ModuleFile) ->
+  io:format("HEYO: ~p~n", [filename:extension(ModuleFile)]),
+  cache_miss(filename:extension(ModuleFile), Vm, ModuleFile).
+
+cache_miss(".json", Vm, ModuleFile) ->
+  C = ev8:new_context(Vm),
+  {ok, Json} = file:read_file(ModuleFile),
+  Js = list_to_binary("JSON.parse(JSON.stringify(" ++ binary_to_list(Json) ++ "))"),
+  ev8:eval(C, {ModuleFile, 0}, Js);
+cache_miss(".js", Vm, ModuleFile) ->
+  C = ev8:new_context(Vm),
+  Module = ev8:eval(C, <<"new Object">>),
+  Exports = ev8:eval(C, <<"new Object">>),
+  ev8:set(C, Module, <<"exports">>, Exports),
+  ev8:set(C, global, [{<<"module">>, Module},
+                      {<<"exports">>, Exports}]),
+  ev8:eval_file(C, ModuleFile),
+
+  Exports.
 
 resolve(File, Path) when is_binary(File) and is_binary(Path) ->
   io:format("Resolve from(~p): ~p~n", [File, Path]),
