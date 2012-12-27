@@ -64,11 +64,12 @@ cache_miss(_, Vm, ModuleFile) ->
 
 cache_miss_js(Vm, ModuleFile) ->
   C = ev8:new_context(Vm),
-  ev8:install(C, [ev8_require]),
+  ev8:install(C, [ev8_erlang, ev8_require]),
   Module = ev8:eval(C, <<"new Object">>),
   Exports = ev8:eval(C, <<"new Object">>),
   ev8:set(C, global, [{<<"module">>, Module},
                       {<<"exports">>, Exports}]),
+  ev8cache:insert(Vm, {ev8_require, ModuleFile}, C),
   ev8:eval_file(C, ModuleFile),
 
   C.
