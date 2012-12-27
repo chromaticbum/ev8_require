@@ -42,7 +42,12 @@ require(Vm, File, Module) ->
   Fun = fun() ->
       try_require(Vm, resolve(File, Module))
   end,
-  ev8cache:try_cache(Vm, {ev8_require, Module}, Fun).
+  require(ev8cache:try_cache(Vm, {ev8_require, Module}, Fun)).
+
+require({error, not_found}) ->
+  {error, not_found};
+require(C) ->
+  ev8:get(C, global, <<"exports">>).
 
 try_require(_Vm, {error, not_found}) ->
   {error, not_found};
@@ -62,18 +67,20 @@ cache_miss_js(Vm, ModuleFile) ->
   ev8:install(C, [ev8_require]),
   Module = ev8:eval(C, <<"new Object">>),
   Exports = ev8:eval(C, <<"new Object">>),
-  ev8:set(C, Module, <<"exports">>, Exports),
   ev8:set(C, global, [{<<"module">>, Module},
                       {<<"exports">>, Exports}]),
   ev8:eval_file(C, ModuleFile),
 
-  Exports.
+  C.
 
 cache_miss_json(Vm, ModuleFile) ->
   C = ev8:new_context(Vm),
   {ok, Json} = file:read_file(ModuleFile),
   Js = list_to_binary("JSON.parse(JSON.stringify(" ++ binary_to_list(Json) ++ "))"),
-  ev8:eval(C, {ModuleFile, 0}, Js).
+  Exports = ev8:eval(C, {ModuleFile, 0}, Js),
+  ev8:set(C, global, <<"exports">>, Exports),
+
+  C.
 
 resolve(File, Path) when is_binary(File) and is_binary(Path) ->
   resolve(binary_to_list(File), binary_to_list(Path));
