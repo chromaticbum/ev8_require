@@ -65,10 +65,11 @@ no_ext(Config) ->
 
 dir(Config) ->
   C = ?config(context, Config),
-  ExpectedPackage = list_to_binary(filename:join(?config(module_dir, Config), "module_with_package/something.js")),
+  ExpectedPackage = list_to_binary(ev8_require:clean_absname(filename:join(?config(module_dir, Config), "module_with_package/something.js"))),
   ExpectedPackage = evo8:eval(C, ?config(script_origin, Config), <<"require.resolve('./module_with_package')">>),
+  io:format("Hello there: ~p~n", [ExpectedPackage]),
 
-  ExpectedJson = list_to_binary(filename:join(?config(module_dir, Config), "module_no_package/index.js")),
+  ExpectedJson = list_to_binary(ev8_require:clean_absname(filename:join(?config(module_dir, Config), "module_no_package/index.js"))),
   ExpectedJson = evo8:eval(C, ?config(script_origin, Config), <<"require.resolve('./module_no_package')">>),
 
   ok.

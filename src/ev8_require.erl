@@ -6,7 +6,8 @@
   install/1,
   add_core_path/1,
   get_env/1,
-  set_env/2
+  set_env/2,
+  clean_absname/1
   ]).
 
 start() ->
@@ -39,22 +40,27 @@ set_env(Name, Value) ->
 % Internal functions
 
 require(This, Vm, File, Module) ->
-  Fun = fun() ->
-      try_require(Vm, resolve(This, File, Module))
-  end,
-  require(ev8cache:try_cache(Vm, {ev8_require, Module}, Fun)).
+  io:format("HEYO: ~p:~p:~p:~p~n", [This, Vm, File, Module]),
+  require(resolve(This, File, Module), Vm).
 
-require({error, not_found}) ->
+require({error, not_found}, _Vm) ->
   {error, not_found};
+require(Path, Vm) ->
+  io:format("REQUIRING: ~p~n", [Path]),
+  Fun = fun() ->
+      try_require(Vm, Path)
+  end,
+  require(ev8cache:try_cache(Vm, {ev8_require, Path}, Fun)).
+
 require(C) ->
   ev8:get(C, global, <<"exports">>).
 
-try_require(_Vm, {error, not_found}) ->
-  {error, not_found};
 try_require(Vm, Module) ->
+  io:format("try_require ~p~n", [Module]),
   cache_miss(Vm, binary_to_list(Module)).
 
 cache_miss(Vm, ModuleFile) ->
+  io:format("cache_miss: ~p~n", [ModuleFile]),
   cache_miss(filename:extension(ModuleFile), Vm, ModuleFile).
 
 cache_miss(".json", Vm, ModuleFile) ->
@@ -108,9 +114,9 @@ resolve(_This, File, Path) when is_list(File) and is_list(Path) ->
 resolve({error, not_found}) ->
   {error, not_found};
 resolve({ok, Result}) when is_list(Result) ->
-  list_to_binary(Result);
+  resolve({ok, list_to_binary(Result)});
 resolve({ok, Result}) when is_binary(Result) ->
-  Result.
+  clean_absname(Result).
 
 do_resolve(File, Path) ->
   do_resolve(pathtype(Path), File, Path).
@@ -118,6 +124,7 @@ do_resolve(File, Path) ->
 do_resolve(relative, File, Path) ->
   do_resolve(absolute, File, filename:join(filename:dirname(filename:absname(File)), Path));
 do_resolve(absolute, _File, Path) ->
+  io:format("do_resolve: ~p~n", [Path]),
   resolve_absolute(Path);
 do_resolve(library, _File, Path) ->
   resolve_library(Path).
@@ -204,4 +211,20 @@ pathtype(Path) ->
     ".." -> relative;
     "/" -> absolute;
     _ -> library
+  end.
+
+clean_absname(Path) when is_binary(Path) ->
+  list_to_binary(clean_absname(binary_to_list(Path)));
+clean_absname(Path) ->
+  clean_absname(string:tokens(Path, "/"), []).
+
+clean_absname([], Acc) ->
+  "/" ++ string:join(lists:reverse(Acc), "/");
+clean_absname([Head | Tail], Acc) ->
+  case Head of
+    "." -> clean_absname(Tail, Acc);
+    ".." ->
+      [_ | AccTail] = Acc,
+      clean_absname(Tail, AccTail);
+    Dir -> clean_absname(Tail, [Dir | Acc])
   end.
