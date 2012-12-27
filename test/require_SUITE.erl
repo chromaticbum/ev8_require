@@ -11,16 +11,18 @@
 -export([
   require_js/1,
   require_json/1,
+  require_erl/1,
   require_package_module/1,
   require_index_module/1,
   require_core/1
   ]).
 
 all() -> [require_js,
-         require_json,
-         require_package_module,
-         require_index_module,
-         require_core].
+          require_json,
+          require_erl,
+          require_package_module,
+          require_index_module,
+          require_core].
 
 init_per_suite(Config) ->
   ev8_require:start(),
@@ -55,6 +57,15 @@ require_json(Config) ->
   Obj = ev8:eval(
       C, ?config(script_origin, Config), <<"require('./module_json/module.json')">>),
   <<"awesome">> = evo8:get(C, Obj, <<"mothra">>),
+
+  ok.
+
+require_erl(Config) ->
+  C = ?config(context, Config),
+
+  ev8:eval(
+      C, ?config(script_origin, Config), <<"var mod = require('./ev8_module.erl')">>),
+  <<"mod_fun_result">> = evo8:eval(C, <<"mod.mod_fun()">>),
 
   ok.
 

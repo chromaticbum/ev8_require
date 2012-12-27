@@ -58,6 +58,9 @@ no_ext(Config) ->
   ExpectedJson = list_to_binary(filename:join(?config(module_dir, Config), "module_json/module.json")),
   ExpectedJson = evo8:eval(C, ?config(script_origin, Config), <<"require.resolve('./module_json/module')">>),
 
+  ExpectedErl = list_to_binary(filename:join(?config(module_dir, Config), "module_erl/module.erl")),
+  ExpectedErl = evo8:eval(C, ?config(script_origin, Config), <<"require.resolve('./module_erl/module')">>),
+
   ok.
 
 dir(Config) ->

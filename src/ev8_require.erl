@@ -59,8 +59,26 @@ cache_miss(Vm, ModuleFile) ->
 
 cache_miss(".json", Vm, ModuleFile) ->
   cache_miss_json(Vm, ModuleFile);
+cache_miss(".erl", Vm, ModuleFile) ->
+  cache_miss_erl(Vm, ModuleFile);
 cache_miss(_, Vm, ModuleFile) ->
   cache_miss_js(Vm, ModuleFile).
+
+cache_miss_erl(Vm, ModuleFile) ->
+  {ok, Module} = compile:file(filename:rootname(ModuleFile)),
+  Info = Module:module_info(),
+  ModuleExports = proplists:get_value(exports, Info),
+  Props = lists:map(
+      fun({Fun, _Arity}) ->
+          Field = list_to_binary(atom_to_list(Fun)),
+          {Field, {mf, {Module, Fun}}}
+      end, ModuleExports
+      ),
+
+  C = ev8:new_context(Vm),
+  ev8:set(C, global, <<"exports">>, {struct, Props}),
+  
+  C.
 
 cache_miss_js(Vm, ModuleFile) ->
   C = ev8:new_context(Vm),
@@ -169,7 +187,12 @@ resolve_js(false, Path) ->
 
 resolve_json(true, Path) ->
   {ok, Path ++ ".json"};
-resolve_json(false, _Path) ->
+resolve_json(false, Path) ->
+  resolve_erl(filelib:is_file(Path ++ ".erl"), Path).
+
+resolve_erl(true, Path) ->
+  {ok, Path ++ ".erl"};
+resolve_erl(false, _Path) ->
   {error, not_found}.
 
 pathtype(Path) when is_binary(Path) ->
