@@ -18,14 +18,9 @@ stop() ->
   application:stop(ev8_require).
 
 install(Context) ->
-  Fun = fun() ->
-      ev8:set(Context, global, <<"_require">>, fun require/4),
-      ev8:set(Context, global, <<"_resolve">>, fun resolve/3),
-      ev8:eval_file(Context, filename:join(code:priv_dir(ev8_require), "ev8_require.js")),
-
-      ok
-  end,
-  ev8:transaction(Context, Fun).
+  ev8:set(Context, global, <<"_require">>, fun require/4),
+  ev8:set(Context, global, <<"_resolve">>, fun resolve/3),
+  ev8:eval_file(Context, filename:join(code:priv_dir(ev8_require), "ev8_require.js")).
 
 add_core_path(Path) ->
   set_env(core_path, get_env(core_path) ++ [Path]).
