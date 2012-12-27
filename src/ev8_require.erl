@@ -92,7 +92,7 @@ cache_miss_js(Vm, ModuleFile) ->
   Exports = ev8:eval(C, <<"new Object">>),
   ev8:set(C, global, [{<<"module">>, global},
                       {<<"exports">>, Exports}]),
-  ev8cache:insert(Vm, {ev8_require, ModuleFile}, C),
+  ev8cache:insert(Vm, {ev8_require, list_to_binary(ModuleFile)}, C),
   ev8:eval_file(C, ModuleFile),
 
   C.
