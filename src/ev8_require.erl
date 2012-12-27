@@ -18,8 +18,8 @@ stop() ->
 
 install(Context) ->
   Fun = fun() ->
-      ev8:set(Context, global, <<"_require">>, fun require/3),
-      ev8:set(Context, global, <<"_resolve">>, fun resolve/2),
+      ev8:set(Context, global, <<"_require">>, fun require/4),
+      ev8:set(Context, global, <<"_resolve">>, fun resolve/3),
       ev8:eval_file(Context, filename:join(code:priv_dir(ev8_require), "ev8_require.js")),
 
       ok
@@ -38,9 +38,9 @@ set_env(Name, Value) ->
 
 % Internal functions
 
-require(Vm, File, Module) ->
+require(This, Vm, File, Module) ->
   Fun = fun() ->
-      try_require(Vm, resolve(File, Module))
+      try_require(Vm, resolve(This, File, Module))
   end,
   require(ev8cache:try_cache(Vm, {ev8_require, Module}, Fun)).
 
@@ -82,9 +82,9 @@ cache_miss_json(Vm, ModuleFile) ->
 
   C.
 
-resolve(File, Path) when is_binary(File) and is_binary(Path) ->
-  resolve(binary_to_list(File), binary_to_list(Path));
-resolve(File, Path) when is_list(File) and is_list(Path) ->
+resolve(This, File, Path) when is_binary(File) and is_binary(Path) ->
+  resolve(This, binary_to_list(File), binary_to_list(Path));
+resolve(_This, File, Path) when is_list(File) and is_list(Path) ->
   resolve(do_resolve(File, Path)).
 
 resolve({error, not_found}) ->
