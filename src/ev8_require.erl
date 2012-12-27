@@ -141,10 +141,15 @@ resolve_absolute(Path) ->
 
 resolve_path(true, false, Path) ->
   {ok, Path};
-resolve_path(true, true, Path) ->
-  resolve_dir(Path);
-resolve_path(false, false, Path) ->
+resolve_path(_, _, Path) ->
   resolve_file(Path).
+
+resolve_dir(true, Path) ->
+  io:format("DIRRRR~n"),
+  resolve_dir(Path);
+resolve_dir(false, _Path) ->
+  io:format("NOT DIRRRR~n"),
+  {error, not_found}.
 
 resolve_dir(Path) ->
   resolve_package(filelib:is_file(filename:join(Path, "package.json")), Path).
@@ -173,12 +178,7 @@ resolve_index(false, _Path) ->
   {error, not_found}.
 
 resolve_file(Path) ->
-  resolve_file(filename:extension(Path), Path).
-
-resolve_file([], Path) ->
-  resolve_js(filelib:is_file(Path ++ ".js"), Path);
-resolve_file(_, _Path) ->
-  {error, not_found}.
+  resolve_js(filelib:is_file(Path ++ ".js"), Path).
 
 resolve_js(true, Path) ->
   {ok, Path ++ ".js"};
@@ -192,8 +192,8 @@ resolve_json(false, Path) ->
 
 resolve_erl(true, Path) ->
   {ok, Path ++ ".erl"};
-resolve_erl(false, _Path) ->
-  {error, not_found}.
+resolve_erl(false, Path) ->
+  resolve_dir(filelib:is_dir(Path), Path).
 
 pathtype(Path) when is_binary(Path) ->
   pathtype(binary_to_list(Path));
