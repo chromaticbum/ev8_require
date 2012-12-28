@@ -3,7 +3,7 @@ DIALYZER = dialyzer
 
 all: compile
 
-compile: clean rebar-compile
+compile: rebar-compile
 
 dependencies:
 	./rebar get-deps
