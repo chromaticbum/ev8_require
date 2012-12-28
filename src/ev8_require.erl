@@ -18,8 +18,8 @@ stop() ->
   application:stop(ev8_require).
 
 install(Context) ->
-  ev8:set(Context, global, <<"_require">>, fun require/4),
-  ev8:set(Context, global, <<"_resolve">>, fun resolve/3),
+  ev8:set(Context, global, <<"_require">>, fun require/2),
+  ev8:set(Context, global, <<"_resolve">>, fun resolve/2),
   ev8:eval_file(Context, filename:join(code:priv_dir(ev8_require), "ev8_require.js")).
 
 add_core_path(Path) ->
@@ -34,14 +34,11 @@ set_env(Name, Value) ->
 
 % Internal functions
 
-require(This, Vm, File, Module) ->
-  io:format("HEYO: ~p:~p:~p:~p~n", [This, Vm, File, Module]),
-  require(resolve(This, File, Module), Vm).
-
+require(This, [Vm, File, Module]) ->
+  require(resolve(This, [File, Module]), Vm);
 require({error, not_found}, _Vm) ->
   {error, not_found};
 require(Path, Vm) ->
-  io:format("REQUIRING: ~p~n", [Path]),
   Fun = fun() ->
       try_require(Vm, Path)
   end,
@@ -101,9 +98,9 @@ cache_miss_json(Vm, ModuleFile) ->
 
   C.
 
-resolve(This, File, Path) when is_binary(File) and is_binary(Path) ->
-  resolve(This, binary_to_list(File), binary_to_list(Path));
-resolve(_This, File, Path) when is_list(File) and is_list(Path) ->
+resolve(This, [File, Path]) when is_binary(File) and is_binary(Path) ->
+  resolve(This, [binary_to_list(File), binary_to_list(Path)]);
+resolve(_This, [File, Path]) when is_list(File) and is_list(Path) ->
   resolve(do_resolve(File, Path)).
 
 resolve({error, not_found}) ->
